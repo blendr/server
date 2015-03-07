@@ -1,133 +1,96 @@
 package main
 
-/*
 import (
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
-	"net/url"
-	"strings"
 
-	"github.com/gorilla/sessions"
-	"golang.org/x/net/context"
-	"golang.org/x/oauth2"
+	"google.golang.org/api/gmail/v1"
+
+	"code.google.com/p/goauth2/oauth"
 )
 
-// serveHTTP formats and passes up an error
-func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if e := fn(w, r); e != nil { // e is *appError, not os.Error.
-		log.Println(e.Err)
-		http.Error(w, e.Message, e.Code)
+var notAuthenticatedTemplate = template.Must(template.New("").Parse(`
+<html><body>
+You have currently not given permissions to access your data. Please authenticate this app with the Google OAuth provider.
+<form action="/authorize" method="POST"><input type="submit" value="Ok, authorize this app with my id"/></form>
+</body></html>
+`))
+
+var userInfoTemplate = template.Must(template.New("").Parse(`
+<html><body>
+This app is now authenticated to access your Google user info.  Your details are:<br />
+{{.}}
+</body></html>
+`))
+
+var oauthCfg = &oauth.Config{
+	ClientId:     clientID,
+	ClientSecret: clientSecret,
+
+	// For Google's oauth2 authentication, use this defined URL
+	AuthURL: "https://accounts.google.com/o/oauth2/auth",
+
+	// For Google's oauth2 authentication, use this defined URL
+	TokenURL: "https://accounts.google.com/o/oauth2/token",
+
+	// To return your oauth2 code, Google will redirect the browser to this page that you have defined
+	// TODO: This exact URL should also be added in your Google API console for this project
+	// within "API Access"->"Redirect URIs"
+	RedirectURL: "http://localhost:5000/oauth2callback",
+
+	// This is the 'scope' of the data that you are asking the user's permission to access.
+	// For getting user's info, this is the url that Google has defined.
+	Scope: gmail.MailGoogleComScope,
+}
+
+// This is the URL that Google has defined so that an authenticated application may
+// obtain the user's info in json format
+const profileInfoURL = "https://www.googleapis.com/oauth2/v1/userinfo?alt=json"
+
+func checkIfAuthenticated(w http.ResponseWriter, r *http.Request) {
+	session, _ := store.Get(r, sessionKey)
+	log.Println(session.ID)
+}
+
+func handleRoot(w http.ResponseWriter, r *http.Request) {
+	notAuthenticatedTemplate.Execute(w, nil)
+}
+
+// Start the authorization process
+func handleAuthorize(w http.ResponseWriter, r *http.Request) {
+	//Get the Google URL which shows the Authentication page to the user
+	url := oauthCfg.AuthCodeURL("")
+	//redirect user to that page
+	http.Redirect(w, r, url, http.StatusFound)
+}
+
+// Function that handles the callback from the Google server
+func handleOAuth2Callback(w http.ResponseWriter, r *http.Request) {
+	//Get the code from the response
+	code := r.FormValue("code")
+
+	t := &oauth.Transport{
+		Config: oauthCfg,
 	}
-}
 
-// store initializes the Gorilla session store.
-var store = sessions.NewCookieStore([]byte(randomString(32)))
+	// Exchange the received code for a token
+	t.Exchange(code)
 
-// appHandler is to be used in error handling
-type appHandler func(http.ResponseWriter, *http.Request) *appError
-
-type appError struct {
-	Err     error
-	Message string
-	Code    int
-}
-
-// Token represents an OAuth token response.
-type Token struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
-	ExpiresIn   int    `json:"expires_in"`
-	IdToken     string `json:"id_token"`
-}
-
-// ClaimSet represents an IdToken response.
-type ClaimSet struct {
-	Sub string
-}
-
-// exchange takes an authentication code and exchanges it with the OAuth
-// endpoint for a Google API bearer token and a Google+ ID
-func exchange(code string) (accessToken string, idToken string, err error) {
-	// Exchange the authorization code for a credentials object via a POST request
-	addr := "https://accounts.google.com/o/oauth2/token"
-	values := url.Values{
-		"Content-Type":  {"application/x-www-form-urlencoded"},
-		"code":          {code},
-		"client_id":     {clientID},
-		"client_secret": {clientSecret},
-		"redirect_uri":  {config.RedirectURL},
-		"grant_type":    {"authorization_code"},
-	}
-	resp, err := http.PostForm(addr, values)
+	gservice, err := gmail.New(t.Client())
 	if err != nil {
-		return "", "", fmt.Errorf("Exchanging code: %v", err)
+		log.Fatalf("Failed to create new gmail service => %s", err.Error())
 	}
-	defer resp.Body.Close()
 
-	// Decode the response body into a token object
-	var token Token
-	err = json.NewDecoder(resp.Body).Decode(&token)
+	call := gservice.Users.Messages.List("me")
+	resp, err := call.Do()
 	if err != nil {
-		return "", "", fmt.Errorf("Decoding access token: %v", err)
+		log.Fatalf("Failed to query gmail for email list => %s", err.Error())
 	}
 
-	return token.AccessToken, token.IdToken, nil
-}
-
-// decodeIdToken takes an ID Token and decodes it to fetch the Google+ ID within
-func decodeIdToken(idToken string) (gplusID string, err error) {
-	// An ID token is a cryptographically-signed JSON object encoded in base 64.
-	// Normally, it is critical that you validate an ID token before you use it,
-	// but since you are communicating directly with Google over an
-	// intermediary-free HTTPS channel and using your Client Secret to
-	// authenticate yourself to Google, you can be confident that the token you
-	// receive really comes from Google and is valid. If your server passes the ID
-	// token to other components of your app, it is extremely important that the
-	// other components validate the token before using it.
-	var set ClaimSet
-	if idToken != "" {
-		// Check that the padding is correct for a base64decode
-		parts := strings.Split(idToken, ".")
-		if len(parts) < 2 {
-			return "", fmt.Errorf("Malformed ID token")
-		}
-		// Decode the ID token
-		b, err := base64Decode(parts[1])
-		if err != nil {
-			return "", fmt.Errorf("Malformed ID token: %v", err)
-		}
-		err = json.Unmarshal(b, &set)
-		if err != nil {
-			return "", fmt.Errorf("Malformed ID token: %v", err)
-		}
+	fmt.Fprintf(w, "<h1>emails</h1>")
+	for _, m := range resp.Messages {
+		fmt.Fprintf(w, m.Id+"<br>")
 	}
-	return set.Sub, nil
 }
-
-func newOAuthClient(ctx context.Context, config *oauth2.Config) *http.Client {
-	cacheFile := tokenCacheFile(config)
-	token, err := tokenFromFile(cacheFile)
-	if err != nil {
-		token = tokenFromWeb(ctx, config)
-		saveToken(cacheFile, token)
-	} else {
-		log.Printf("Using cached token %#v from %q", token, cacheFile)
-	}
-	return config.Client(ctx, token)
-}
-
-func base64Decode(s string) ([]byte, error) {
-	// add back missing padding
-	switch len(s) % 4 {
-	case 2:
-		s += "=="
-	case 3:
-		s += "="
-	}
-	return base64.URLEncoding.DecodeString(s)
-}
-
-*/
