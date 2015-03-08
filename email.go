@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 
@@ -33,16 +34,23 @@ type newEmailRequest struct {
 // newEmail is an API endpoint to create a new Draft object
 func newEmail(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var newDraft newEmailRequest
-	decoder := json.NewDecoder(r.Body)
+	buf, err := ioutil.ReadAll(r.Body) // TODO: fix
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		log.Printf("Failed to read in request body => {%s}", err)
+		return
+	}
 	defer r.Body.Close()
 
 	// decode the request
-	err := decoder.Decode(&newDraft)
+	err = json.Unmarshal(buf, &newDraft)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		log.Printf("Failed to decode JSON request => {%s}", err)
+		log.Printf("Failed to decode JSON request => {%s}, data => {%s}", err, string(buf))
 		return
 	}
+
+	log.Printf("Draft recieved => %#v", newDraft)
 
 	// see if the draft alread exists
 	n, err := mgoConn.C(emailCollection).Find(bson.M{"draft_id": newDraft.DraftID}).Count()
