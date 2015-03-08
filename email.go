@@ -81,6 +81,7 @@ func newEmail(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	err = mgoConn.C(emailCollection).Insert(&mail)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		log.Printf("failed to insert new draft to %s=> {%s}", emailCollection, err)
 		fmt.Fprintf(w, "Failed to add to database => {%s}", err)
 	}
 }
