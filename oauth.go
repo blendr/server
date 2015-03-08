@@ -43,7 +43,7 @@ var oauthCfg = &oauth2.Config{
 	},
 }
 
-func needAuth(w http.ResponseWriter, r *http.Request) {
+func needAuth(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	notAuthenticatedTemplate.Execute(w, nil)
 }
 
@@ -111,16 +111,37 @@ func makeClient(r *http.Request) *http.Client {
 	// grab the cookie
 	session, err := store.Get(r, sessionKey)
 	if err != nil {
-		log.Printf("Failed to find session => {%s}")
+		log.Printf("makeClient: Failed to find session => {%s}")
 		return nil
 	}
 
 	tok := new(oauth2.Token)
 	err = json.Unmarshal(session.Values[tokenKey].([]byte), tok)
 	if err != nil {
-		log.Printf("Failed to unmarshal token => {%s}")
+		log.Printf("makeClient: Failed to unmarshal token => {%s}")
 		return nil
 	}
+
+	// refresh token
+	/*
+		if !tok.Valid() {
+			// createa token with the code
+			newToken, err := oauthCfg.Exchange(oauth2.NoContext, session.Values[codeKey].(string))
+			if err != nil {
+				log.Printf("makeClient: failed to exchange with code => {%s}", err)
+				return nil
+			}
+
+			// stuff the token into the cookie
+			session.Values[tokenKey], err = json.Marshal(newToken)
+			if err != nil {
+				log.Printf("makeClient: failed to marshal token to JSON => {%s}", err)
+				return nil
+			}
+
+			tok = newToken
+		}
+	*/
 
 	return oauthCfg.Client(oauth2.NoContext, tok)
 }

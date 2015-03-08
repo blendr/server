@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/google/google-api-go-client/gmail/v1"
 	"github.com/gorilla/context"
 	"github.com/gorilla/sessions"
 	"github.com/julienschmidt/httprouter"
@@ -75,31 +74,6 @@ func checkIfAuthenticated(h func(http.ResponseWriter, *http.Request, httprouter.
 	})
 }
 
-func list_emails(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	client := makeClient(r)
-	if client == nil {
-		fmt.Fprintf(w, "Error while creating oauth2 client")
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	gservice, err := gmail.New(client)
-	if err != nil {
-		log.Fatalf("Failed to create new gmail service => %s", err.Error())
-	}
-
-	call := gservice.Users.Messages.List("me")
-	resp, err := call.Do()
-	if err != nil {
-		log.Fatalf("Failed to query gmail for email list => %s", err.Error())
-	}
-
-	fmt.Fprintf(w, "<h1>emails</h1>")
-	for _, m := range resp.Messages {
-		fmt.Fprintf(w, m.Id+"<br>")
-	}
-}
-
 func hi(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	s, err := store.Get(r, sessionKey)
 	if err != nil {
@@ -123,13 +97,13 @@ func main() {
 
 	router.GET("/", hi)
 	router.POST("/authorize", handleAuthorize)
-	router.HandlerFunc("GET", "/authenticate", needAuth)
+	router.GET("/authenticate", needAuth)
 	router.GET("/list", checkIfAuthenticated(list_emails))
 
 	// API
 	router.POST("/draft/create", checkIfAuthenticated(newEmail))
-	router.POST(fmt.Sprintf("/draft/:%s", draftIDParam), checkIfAuthenticated(draftUpdate))
 	router.POST("/draft/list", checkIfAuthenticated(listAvailable))
+	router.POST(fmt.Sprintf("/draft/id/:%s", draftIDParam), checkIfAuthenticated(draftUpdate))
 
 	//Google will redirect to this page to return your code, so handle it appropriately
 	router.GET("/oauth2callback", handleOAuth2Callback)
