@@ -19,6 +19,7 @@ const (
 	codeKey         = "gmail-code"
 	tokenKey        = "gmail-token"
 	userEmailKey    = "gmail-email"
+	userIDKey       = "gmail-id"
 	draftIDParam    = "draft_id_param"
 )
 
@@ -48,7 +49,6 @@ func init() {
 	if baseURL == "" {
 		log.Fatal("No config found for BASE_URL")
 	}
-	log.Printf("Base URL => %s", baseURL)
 
 	var mgoSession *mgo.Session
 	var err error
@@ -94,7 +94,7 @@ func hi(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
-	user := s.Values[userEmailKey]
+	user := s.Values[userEmailKey].(string)
 	if user == "" {
 		user = " "
 	}
@@ -111,7 +111,7 @@ func main() {
 	router.GET("/", hi)
 	router.POST("/authorize", handleAuthorize)
 	router.GET("/authenticate", needAuth)
-	router.GET("/list", checkIfAuthenticated(list_emails))
+	router.GET("/list", checkIfAuthenticated(listEmails))
 
 	// API
 	router.POST("/draft/create", checkIfAuthenticated(newEmail))

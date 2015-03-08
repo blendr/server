@@ -98,6 +98,7 @@ func handleOAuth2Callback(w http.ResponseWriter, r *http.Request, _ httprouter.P
 		return
 	}
 	s.Values[userEmailKey] = callRes.Email
+	s.Values[userIDKey] = callRes.Id
 
 	// save the cookie and return
 	store.Save(r, w, s)

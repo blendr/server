@@ -32,7 +32,6 @@ type newEmailRequest struct {
 // newEmail is an API endpoint to create a new Draft object
 func newEmail(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var newDraft newEmailRequest
-
 	decoder := json.NewDecoder(r.Body)
 	defer r.Body.Close()
 
@@ -53,8 +52,32 @@ func newEmail(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
+	// grab session reference
+	s, err := store.Get(r, sessionKey)
+	if err != nil {
+		fmt.Fprintf(w, "Failed to access the session => {%s}", err)
+		return
+	}
+
+	body, err := getDraft(r, newDraft.DraftID)
+	if err != nil {
+		fmt.Fprintf(w, "Failed to access the gmail draft => {%s}", err)
+		return
+	}
+
 	// insert the new draft
-	err = mgoConn.C(emailCollection).Insert(&newDraft)
+	mail := Email{
+		DraftID:       newDraft.DraftID,
+		Owner:         s.Values[userEmailKey].(string),
+		Collaborators: []string{s.Values[userEmailKey].(string)},
+		Edits: []Edit{
+			Edit{
+				Editor:  s.Values[userEmailKey].(string),
+				Content: body,
+			},
+		},
+	}
+	err = mgoConn.C(emailCollection).Insert(&mail)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Failed to add to database => {%s}", err)

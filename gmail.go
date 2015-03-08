@@ -9,7 +9,7 @@ import (
 	"google.golang.org/api/gmail/v1"
 )
 
-func list_emails(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func listEmails(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	client := makeClient(r)
 	if client == nil {
 		fmt.Fprintf(w, "Error while creating oauth2 client")
@@ -32,4 +32,30 @@ func list_emails(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	for _, m := range resp.Messages {
 		fmt.Fprintf(w, m.Id+"<br>")
 	}
+}
+
+func getDraft(r *http.Request, id string) (string, error) {
+	client := makeClient(r)
+	if client == nil {
+		return "", fmt.Errorf("Error while creating oauth2 client")
+	}
+
+	gservice, err := gmail.New(client)
+	if err != nil {
+		log.Fatalf("Failed to create new gmail service => %s", err.Error())
+	}
+
+	// grab session reference
+	s, err := store.Get(r, sessionKey)
+	if err != nil {
+		return "", fmt.Errorf("Failed to access the session => {%s}", err)
+	}
+
+	uds := gmail.NewUsersDraftsService(gservice)
+	draft, err := uds.Get(s.Values[userIDKey].(string), id).Do()
+	if err != nil {
+		return "", fmt.Errorf("Failed to access draft => {%s}", err)
+	}
+
+	return draft.Message.Raw, nil
 }
