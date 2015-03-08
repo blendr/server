@@ -69,7 +69,10 @@ func init() {
 // checkIfAuthenticated handles checking if the token is in the cookie. If it is not
 // then we redirect to let the user re-authenticate.
 func checkIfAuthenticated(h func(http.ResponseWriter, *http.Request, httprouter.Params)) httprouter.Handle {
+
 	return httprouter.Handle(func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
 		session, err := store.Get(r, sessionKey)
 		if err != nil {
 			log.Printf("error getting session => {%s}", err)
