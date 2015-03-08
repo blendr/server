@@ -78,6 +78,7 @@ func checkIfAuthenticated(h func(http.ResponseWriter, *http.Request, httprouter.
 
 	return httprouter.Handle(func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		w.Header().Set("Access-Control-Allow-Origin", "https://mail.google.com")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		session, err := store.Get(r, sessionKey)
 		if err != nil {

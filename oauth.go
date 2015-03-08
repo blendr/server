@@ -45,6 +45,7 @@ var oauthCfg = &oauth2.Config{
 
 func needAuth(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	w.Header().Set("Access-Control-Allow-Origin", "https://mail.google.com")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	notAuthenticatedTemplate.Execute(w, nil)
 }
 
