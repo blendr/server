@@ -15,15 +15,15 @@ const (
 )
 
 type Email struct {
-	DraftID       string
-	Owner         string
-	Collaborators []string
-	Edits         []Edit
+	DraftID       string   `bson:"draft_id"`
+	Owner         string   `bson:"owner"`
+	Collaborators []string `bson:"collaborators"`
+	Edits         []Edit   `bson:"edits"`
 }
 
 type Edit struct {
-	Editor  string
-	Content string
+	Editor  string `bson:"editor"`
+	Content string `bson:"content"`
 }
 
 type newEmailRequest struct {
@@ -60,20 +60,23 @@ func newEmail(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
+	// get actual Gmail draft
 	body, err := getDraft(r, newDraft.DraftID)
 	if err != nil {
 		fmt.Fprintf(w, "Failed to access the gmail draft => {%s}", err)
 		return
 	}
+	log.Printf("email body => %s", body)
 
 	// insert the new draft
+	owner := s.Values[userEmailKey].(string)
 	mail := Email{
 		DraftID:       newDraft.DraftID,
-		Owner:         s.Values[userEmailKey].(string),
-		Collaborators: []string{s.Values[userEmailKey].(string)},
+		Owner:         owner,
+		Collaborators: []string{owner},
 		Edits: []Edit{
 			Edit{
-				Editor:  s.Values[userEmailKey].(string),
+				Editor:  owner,
 				Content: body,
 			},
 		},
