@@ -20,12 +20,15 @@ const (
 	codeKey         = "gmail-code"
 	tokenKey        = "gmail-token"
 	userEmailKey    = "gmail-email"
+	draftIDParam    = "draft_id_param"
 )
 
 var (
 	serverPort   string
 	clientID     = os.Getenv("GOOGLE_CLIENT_ID")
 	clientSecret = os.Getenv("GOOGLE_CLIENT_SECRET")
+
+	mongoDatabase = "blendr"
 
 	// store initializes the Gorilla session store.
 	store = sessions.NewCookieStore([]byte("qwerty1234")) // TODO: configure
@@ -44,8 +47,11 @@ func init() {
 	if err != nil {
 		log.Fatalf("Cannot connect to Mongo => {%s}", err)
 	}
+	// durable writes
+	mgoSession.SetSafe(&mgo.Safe{})
 
-	mgoConn = mgoSession.DB("blendr")
+	// connect to the right database
+	mgoConn = mgoSession.DB(mongoDatabase)
 }
 
 // checkIfAuthenticated handles checking if the token is in the cookie. If it is not
@@ -122,6 +128,7 @@ func main() {
 
 	// API
 	router.Handler("POST", "/draft/create", checkIfAuthenticated(http.HandlerFunc(newEmail)))
+	router.POST(fmt.Sprintf("/draft/:%s", draftIDParam), draftUpdate)
 
 	//Google will redirect to this page to return your code, so handle it appropriately
 	router.HandlerFunc("GET", "/oauth2callback", handleOAuth2Callback)

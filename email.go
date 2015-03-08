@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/julienschmidt/httprouter"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -58,4 +59,31 @@ func newEmail(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Failed to add to database => {%s}", err)
 	}
+}
+
+// draftUpdate
+func draftUpdate(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	draftID := p.ByName(draftIDParam)
+	var change Edit
+
+	// decode the request into an Edit
+	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
+	err := decoder.Decode(&change)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "Failed to decode JSON request => {%s}", err)
+	}
+
+	// add the author to the change
+	s, err := store.Get(r, sessionKey)
+	if err != nil {
+		fmt.Fprintf(w, "Failed to access the session => {%s}", err)
+		return
+	}
+	change.Editor = s.Values[userEmailKey].(string)
+
+	mgoConn.C(emailCollection).Update(
+		bson.M{"draftID": draftID},
+		bson.M{"$push": bson.M{"Edits": &change}})
 }
