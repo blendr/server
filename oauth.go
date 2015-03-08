@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/julienschmidt/httprouter"
 	googleOauth "google.golang.org/api/oauth2/v2"
 
 	"google.golang.org/api/gmail/v1"
@@ -47,7 +48,7 @@ func needAuth(w http.ResponseWriter, r *http.Request) {
 }
 
 // Start the authorization process
-func handleAuthorize(w http.ResponseWriter, r *http.Request) {
+func handleAuthorize(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	//Get the Google URL which shows the Authentication page to the user
 	url := oauthCfg.AuthCodeURL("")
 	//redirect user to that page
@@ -55,7 +56,7 @@ func handleAuthorize(w http.ResponseWriter, r *http.Request) {
 }
 
 // Function that handles the callback from the Google server
-func handleOAuth2Callback(w http.ResponseWriter, r *http.Request) {
+func handleOAuth2Callback(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	//Get the code from the response
 	code := r.FormValue("code")
 

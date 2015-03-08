@@ -30,7 +30,7 @@ type newEmailRequest struct {
 }
 
 // newEmail is an API endpoint to create a new Draft object
-func newEmail(w http.ResponseWriter, r *http.Request) {
+func newEmail(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var newDraft newEmailRequest
 
 	decoder := json.NewDecoder(r.Body)
@@ -86,4 +86,51 @@ func draftUpdate(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	mgoConn.C(emailCollection).Update(
 		bson.M{"draftID": draftID},
 		bson.M{"$push": bson.M{"Edits": &change}})
+
+	// TODO: push update to Gmail
+}
+
+var listProjection bson.M = bson.M{
+	"DraftID":          1,
+	"Owner":            1,
+	"NumCollaborators": bson.M{"$count": "Collaborators"},
+	"NumEdits":         bson.M{"$count": "Edits"},
+}
+
+type listSummary struct {
+	DraftID          string `json:"draft_id"`
+	Owner            string `json:""`
+	NumCollaborators int    `json:"num_collaborators"`
+	NumEdits         int    `json:"num_edits"`
+}
+
+// listAvailable returns a list of all available drafts
+func listAvailable(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	// get the requester from the session
+	s, err := store.Get(r, sessionKey)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "Failed to access the session => {%s}", err)
+		return
+	}
+	currentUser := s.Values[userEmailKey].(string)
+
+	// find all drafts the user has access to
+	drafts := []listSummary{}
+	err = mgoConn.C(emailCollection).Find(
+		bson.M{"Collaborators": currentUser},
+	).Select(listProjection).All(&drafts)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "Failed run mongo query => {%s}", err)
+		return
+	}
+
+	encoder := json.NewEncoder(w)
+	err = encoder.Encode(drafts)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "Failed write data to conn => {%s}", err)
+		return
+	}
 }

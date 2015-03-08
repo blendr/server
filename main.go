@@ -56,8 +56,8 @@ func init() {
 
 // checkIfAuthenticated handles checking if the token is in the cookie. If it is not
 // then we redirect to let the user re-authenticate.
-func checkIfAuthenticated(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func checkIfAuthenticated(h func(http.ResponseWriter, *http.Request, httprouter.Params)) httprouter.Handle {
+	return httprouter.Handle(func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		session, err := store.Get(r, sessionKey)
 		if err != nil {
 			log.Printf("error getting session => {%s}", err)
@@ -71,11 +71,11 @@ func checkIfAuthenticated(h http.Handler) http.Handler {
 			return
 		}
 
-		h.ServeHTTP(w, r)
+		h(w, r, p)
 	})
 }
 
-func list_emails(w http.ResponseWriter, r *http.Request) {
+func list_emails(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	client := makeClient(r)
 	if client == nil {
 		fmt.Fprintf(w, "Error while creating oauth2 client")
@@ -100,7 +100,7 @@ func list_emails(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func hi(w http.ResponseWriter, r *http.Request) {
+func hi(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	s, err := store.Get(r, sessionKey)
 	if err != nil {
 		fmt.Fprintf(w, "Failed to access the session => {%s}", err)
@@ -121,17 +121,18 @@ func debugLog(w http.ResponseWriter, r *http.Request) {
 func main() {
 	router := httprouter.New()
 
-	router.HandlerFunc("GET", "/", hi)
-	router.HandlerFunc("POST", "/authorize", handleAuthorize)
+	router.GET("/", hi)
+	router.POST("/authorize", handleAuthorize)
 	router.HandlerFunc("GET", "/authenticate", needAuth)
-	router.Handler("GET", "/list", checkIfAuthenticated(http.HandlerFunc(list_emails)))
+	router.GET("/list", checkIfAuthenticated(list_emails))
 
 	// API
-	router.Handler("POST", "/draft/create", checkIfAuthenticated(http.HandlerFunc(newEmail)))
-	router.POST(fmt.Sprintf("/draft/:%s", draftIDParam), draftUpdate)
+	router.POST("/draft/create", checkIfAuthenticated(newEmail))
+	router.POST(fmt.Sprintf("/draft/:%s", draftIDParam), checkIfAuthenticated(draftUpdate))
+	router.POST("/draft/list", checkIfAuthenticated(listAvailable))
 
 	//Google will redirect to this page to return your code, so handle it appropriately
-	router.HandlerFunc("GET", "/oauth2callback", handleOAuth2Callback)
+	router.GET("/oauth2callback", handleOAuth2Callback)
 
 	router.NotFound = debugLog
 
