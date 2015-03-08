@@ -45,7 +45,7 @@ func init() {
 	}
 
 	baseURL = os.Getenv("BASE_URL")
-	if baseURL != "" {
+	if baseURL == "" {
 		log.Fatal("No config found for BASE_URL")
 	}
 

@@ -34,7 +34,7 @@ var oauthCfg = &oauth2.Config{
 	// To return your oauth2 code, Google will redirect the browser to this page that you have defined
 	// TODO: This exact URL should also be added in your Google API console for this project
 	// within "API Access"->"Redirect URIs"
-	RedirectURL: "http://localhost:5000/oauth2callback",
+	RedirectURL: baseURL + "/oauth2callback",
 	// This is the 'scope' of the data that you are asking the user's permission to access.
 	// For getting user's info, this is the url that Google has defined.
 	Scopes: []string{
