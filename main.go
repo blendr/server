@@ -62,6 +62,10 @@ func init() {
 	}
 	mgoSession.SetSafe(&mgo.Safe{}) // durable writes
 
+	if os.Getenv("MONGO_DATABASE") != "" {
+		mongoDatabase = os.Getenv("MONGO_DATABASE")
+	}
+
 	// connect to the right database
 	mgoConn = mgoSession.DB(mongoDatabase)
 }
