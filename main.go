@@ -35,7 +35,7 @@ var (
 	// mgoConn is the connection to mongodb
 	mgoConn *mgo.Database
 
-	baseURL string
+	baseURL string = "https://cahoots-email.herokuapp.com"
 )
 
 func init() {
@@ -48,6 +48,7 @@ func init() {
 	if baseURL == "" {
 		log.Fatal("No config found for BASE_URL")
 	}
+	log.Printf("Base URL => %s", baseURL)
 
 	var mgoSession *mgo.Session
 	var err error
