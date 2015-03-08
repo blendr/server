@@ -89,7 +89,7 @@ func hi(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 }
 
 func debugLog(w http.ResponseWriter, r *http.Request) {
-	log.Printf("%s: %s", r.Method, r.URL.Path)
+	log.Printf("DEBUG => %s: %s", r.Method, r.URL.Path)
 }
 
 func main() {
@@ -102,7 +102,7 @@ func main() {
 
 	// API
 	router.POST("/draft/create", checkIfAuthenticated(newEmail))
-	router.POST("/draft/list", checkIfAuthenticated(listAvailable))
+	router.GET("/draft/list", checkIfAuthenticated(listAvailable))
 	router.POST(fmt.Sprintf("/draft/id/:%s", draftIDParam), checkIfAuthenticated(draftUpdate))
 
 	//Google will redirect to this page to return your code, so handle it appropriately

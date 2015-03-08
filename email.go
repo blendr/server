@@ -91,17 +91,13 @@ func draftUpdate(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 }
 
 var listProjection bson.M = bson.M{
-	"DraftID":          1,
-	"Owner":            1,
-	"NumCollaborators": bson.M{"$count": "Collaborators"},
-	"NumEdits":         bson.M{"$count": "Edits"},
+	"DraftID": 1,
+	"Owner":   1,
 }
 
 type listSummary struct {
-	DraftID          string `json:"draft_id"`
-	Owner            string `json:""`
-	NumCollaborators int    `json:"num_collaborators"`
-	NumEdits         int    `json:"num_edits"`
+	DraftID string `json:"draft_id"`
+	Owner   string `json:""`
 }
 
 // listAvailable returns a list of all available drafts
