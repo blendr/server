@@ -24,7 +24,8 @@ const (
 
 	sessionKey = "blendr"
 	codeKey    = "gmail-code"
-	tokenKey   = "gmail-token"
+
+	tokenKey = "gmail-token"
 )
 
 var (
@@ -33,7 +34,7 @@ var (
 	clientSecret = os.Getenv("GOOGLE_CLIENT_SECRET")
 
 	// store initializes the Gorilla session store.
-	store = sessions.NewCookieStore([]byte("qwerty123")) // TODO: configure
+	store = sessions.NewCookieStore([]byte("qwerty1234")) // TODO: configure
 )
 
 func init() {
@@ -51,7 +52,7 @@ func checkIfAuthenticated(h http.Handler) http.Handler {
 			return
 		}
 
-		_, exists := session.Values[codeKey]
+		_, exists := session.Values[tokenKey]
 		log.Printf("%#v", session.Values) // TODO: delete
 
 		if !exists {
@@ -60,6 +61,7 @@ func checkIfAuthenticated(h http.Handler) http.Handler {
 		}
 
 		h.ServeHTTP(w, r)
+		session.Save(r, w)
 	})
 }
 

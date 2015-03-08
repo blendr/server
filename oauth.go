@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"log"
@@ -53,10 +54,6 @@ func handleAuthorize(w http.ResponseWriter, r *http.Request) {
 func handleOAuth2Callback(w http.ResponseWriter, r *http.Request) {
 	//Get the code from the response
 	code := r.FormValue("code")
-
-	// Exchange the received code for a token
-	// tok, err := oauthCfg.Exchange(oauth2.NoContext, code)
-
 	s, err := store.New(r, sessionKey)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -71,52 +68,31 @@ func handleOAuth2Callback(w http.ResponseWriter, r *http.Request) {
 		log.Printf("failed to exchange with code => {%s}", err)
 		return
 	}
-	s.Values[tokenKey] = tok.AccessToken
+
+	s.Values[tokenKey], err = json.Marshal(tok)
+	if err != nil {
+		log.Printf("failed to marshal token to JSON => {%s}", err)
+		return
+	}
 
 	store.Save(r, w, s)
 	fmt.Fprintf(w, "You're now authenticated!<br><a href=\"/\">home</a>")
-
-	/*
-		gservice, err := gmail.New(t.Client())
-		if err != nil {
-			log.Fatalf("Failed to create new gmail service => %s", err.Error())
-		}
-
-		call := gservice.Users.Messages.List("me")
-		resp, err := call.Do()
-		if err != nil {
-			log.Fatalf("Failed to query gmail for email list => %s", err.Error())
-		}
-
-		fmt.Fprintf(w, "<h1>emails</h1>")
-		for _, m := range resp.Messages {
-			fmt.Fprintf(w, m.Id+"<br>")
-		}
-	*/
 }
 
 // makeClient creates an oauth2 client from a session variable
 func makeClient(r *http.Request) *http.Client {
+	// grab the cookie
 	session, err := store.Get(r, sessionKey)
 	if err != nil {
 		log.Printf("Failed to find session => {%s}")
 		return nil
 	}
 
-	// Exchange the received code for a token
-	code := session.Values[codeKey].(string)
-	log.Printf("Code => {%s}", code)
-
-	/*
-		tok, err := oauthCfg.Exchange(oauth2.NoContext, code)
-		if err != nil {
-			log.Printf("failed to exchange with code => {%s}", err)
-			return nil
-		}
-	*/
-
-	tok := &oauth2.Token{
-		AccessToken: session.Values[tokenKey].(string),
+	tok := new(oauth2.Token)
+	err = json.Unmarshal(session.Values[tokenKey].([]byte), tok)
+	if err != nil {
+		log.Printf("Failed to unmarshal token => {%s}")
+		return nil
 	}
 
 	return oauthCfg.Client(oauth2.NoContext, tok)
