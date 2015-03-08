@@ -85,6 +85,8 @@ func newEmail(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	decoder := json.NewDecoder(r.Body)
 	defer r.Body.Close()
 
+	log.Printf("about to decode the request") // TODO: delete
+
 	// decode the request
 	err := decoder.Decode(&newDraft)
 	if err != nil {
@@ -93,8 +95,9 @@ func newEmail(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
+	fmt.Printf("about to check for an existing obj\n") // TODO: delete
 	// see if the draft alread exists
-	n, err := mgoConn.C(emailCollection).Find(bson.M{"draftID": newDraft.DraftID}).Count()
+	n, err := mgoConn.C(emailCollection).Find(bson.M{"draft_id": newDraft.DraftID}).Count()
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Failed to check database for existance => {%s}", err)
@@ -105,21 +108,26 @@ func newEmail(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
+	fmt.Printf("about to get the session/cookie\n") // TODO: delete
 	// grab session reference
 	s, err := store.Get(r, sessionKey)
 	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Failed to access the session => {%s}", err)
 		return
 	}
 
+	fmt.Printf("about to get the gmail draft\n") // TODO: delete
 	// get actual Gmail draft
 	body, err := getDraft(r, newDraft.DraftID)
 	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Failed to access the gmail draft => {%s}", err)
 		return
 	}
-	log.Printf("email body => %s", body)
+	fmt.Printf("email body => %s", body) // TODO: delete
 
+	fmt.Printf("about to insert the new email draft\n") // TODO: delete
 	// insert the new draft
 	owner := s.Values[userEmailKey].(string)
 	mail := Email{
@@ -140,6 +148,7 @@ func newEmail(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		fmt.Fprintf(w, "Failed to add to database => {%s}", err)
 		return
 	}
+	fmt.Printf("done handing the request\n") // TODO: delete
 }
 
 // draftUpdate
