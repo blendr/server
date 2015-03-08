@@ -8,7 +8,8 @@ import (
 
 	"google.golang.org/api/gmail/v1"
 
-	"code.google.com/p/goauth2/oauth"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 )
 
 var notAuthenticatedTemplate = template.Must(template.New("").Parse(`
@@ -20,20 +21,20 @@ var notAuthenticatedTemplate = template.Must(template.New("").Parse(`
 </html>
 `))
 
-var oauthCfg = &oauth.Config{
-	ClientId:     clientID,
+// var oauthCfg = &oauth.Config{
+var oauthCfg = &oauth2.Config{
+	ClientID:     clientID,
 	ClientSecret: clientSecret,
-	// For Google's oauth2 authentication, use this defined URL
-	AuthURL: "https://accounts.google.com/o/oauth2/auth",
-	// For Google's oauth2 authentication, use this defined URL
-	TokenURL: "https://accounts.google.com/o/oauth2/token",
+	Endpoint:     google.Endpoint,
 	// To return your oauth2 code, Google will redirect the browser to this page that you have defined
 	// TODO: This exact URL should also be added in your Google API console for this project
 	// within "API Access"->"Redirect URIs"
 	RedirectURL: "http://localhost:5000/oauth2callback",
 	// This is the 'scope' of the data that you are asking the user's permission to access.
 	// For getting user's info, this is the url that Google has defined.
-	Scope: gmail.MailGoogleComScope,
+	Scopes: []string{
+		gmail.MailGoogleComScope,
+	},
 }
 
 func needAuth(w http.ResponseWriter, r *http.Request) {
@@ -53,43 +54,70 @@ func handleOAuth2Callback(w http.ResponseWriter, r *http.Request) {
 	//Get the code from the response
 	code := r.FormValue("code")
 
-	t := &oauth.Transport{
-		Config: oauthCfg,
-	}
-
 	// Exchange the received code for a token
-	t.Exchange(code)
+	// tok, err := oauthCfg.Exchange(oauth2.NoContext, code)
 
-	gservice, err := gmail.New(t.Client())
+	s, err := store.New(r, sessionKey)
 	if err != nil {
-		log.Fatalf("Failed to create new gmail service => %s", err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "Failed to create new session => {%s}", err)
+		return
 	}
 
-	call := gservice.Users.Messages.List("me")
-	resp, err := call.Do()
+	s.Values[codeKey] = code
+
+	tok, err := oauthCfg.Exchange(oauth2.NoContext, code)
 	if err != nil {
-		log.Fatalf("Failed to query gmail for email list => %s", err.Error())
+		log.Printf("failed to exchange with code => {%s}", err)
+		return
 	}
+	s.Values[tokenKey] = tok.AccessToken
 
-	fmt.Fprintf(w, "<h1>emails</h1>")
-	for _, m := range resp.Messages {
-		fmt.Fprintf(w, m.Id+"<br>")
-	}
+	store.Save(r, w, s)
+	fmt.Fprintf(w, "You're now authenticated!<br><a href=\"/\">home</a>")
+
+	/*
+		gservice, err := gmail.New(t.Client())
+		if err != nil {
+			log.Fatalf("Failed to create new gmail service => %s", err.Error())
+		}
+
+		call := gservice.Users.Messages.List("me")
+		resp, err := call.Do()
+		if err != nil {
+			log.Fatalf("Failed to query gmail for email list => %s", err.Error())
+		}
+
+		fmt.Fprintf(w, "<h1>emails</h1>")
+		for _, m := range resp.Messages {
+			fmt.Fprintf(w, m.Id+"<br>")
+		}
+	*/
 }
 
 // makeClient creates an oauth2 client from a session variable
 func makeClient(r *http.Request) *http.Client {
-	t := &oauth.Transport{
-		Config: oauthCfg,
-	}
-
 	session, err := store.Get(r, sessionKey)
 	if err != nil {
+		log.Printf("Failed to find session => {%s}")
 		return nil
 	}
 
 	// Exchange the received code for a token
-	t.Exchange(session.Values[codeKey].(string))
+	code := session.Values[codeKey].(string)
+	log.Printf("Code => {%s}", code)
 
-	return t.Client()
+	/*
+		tok, err := oauthCfg.Exchange(oauth2.NoContext, code)
+		if err != nil {
+			log.Printf("failed to exchange with code => {%s}", err)
+			return nil
+		}
+	*/
+
+	tok := &oauth2.Token{
+		AccessToken: session.Values[tokenKey].(string),
+	}
+
+	return oauthCfg.Client(oauth2.NoContext, tok)
 }

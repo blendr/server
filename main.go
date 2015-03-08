@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/google/google-api-go-client/gmail/v1"
+	"github.com/gorilla/context"
 	"github.com/gorilla/sessions"
 )
 
@@ -23,6 +24,7 @@ const (
 
 	sessionKey = "blendr"
 	codeKey    = "gmail-code"
+	tokenKey   = "gmail-token"
 )
 
 var (
@@ -43,8 +45,14 @@ func init() {
 
 func checkIfAuthenticated(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		session, _ := store.Get(r, sessionKey)
+		session, err := store.Get(r, sessionKey)
+		if err != nil {
+			log.Printf("error getting session => {%s}", err)
+			return
+		}
+
 		_, exists := session.Values[codeKey]
+		log.Printf("%#v", session.Values) // TODO: delete
 
 		if !exists {
 			http.Redirect(w, r, "/authenticate", http.StatusSeeOther)
@@ -56,7 +64,14 @@ func checkIfAuthenticated(h http.Handler) http.Handler {
 }
 
 func list_emails(w http.ResponseWriter, r *http.Request) {
-	gservice, err := gmail.New(makeClient(r))
+	client := makeClient(r)
+	if client == nil {
+		fmt.Fprintf(w, "Error while creating oauth2 client")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	gservice, err := gmail.New(client)
 	if err != nil {
 		log.Fatalf("Failed to create new gmail service => %s", err.Error())
 	}
@@ -93,7 +108,7 @@ func main() {
 	//Google will redirect to this page to return your code, so handle it appropriately
 	http.HandleFunc("/oauth2callback", handleOAuth2Callback)
 
-	err := http.ListenAndServe(":"+serverPort, nil)
+	err := http.ListenAndServe(":"+serverPort, context.ClearHandler(http.DefaultServeMux))
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
