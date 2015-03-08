@@ -31,6 +31,55 @@ type newEmailRequest struct {
 }
 
 // newEmail is an API endpoint to create a new Draft object
+func newEmail2(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+	var newDraft newEmailRequest
+	decoder := json.NewDecoder(r.Body)
+	defer r.Body.Close()
+
+	// decode the request
+	err := decoder.Decode(&newDraft)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "Failed to decode JSON request => {%s}", err)
+		return
+	}
+
+	// see if the draft alread exists
+	n, err := mgoConn.C(emailCollection).Find(bson.M{"draftID": newDraft.DraftID}).Count()
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "Failed to check database for existance => {%s}", err)
+		return
+	} else if n != 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "tried to recreate object")
+		return
+	}
+
+	// insert the new draft
+	owner := "natebrennand@gmail.com"
+	body := "yolo test"
+	mail := Email{
+		DraftID:       newDraft.DraftID,
+		Owner:         owner,
+		Collaborators: []string{owner},
+		Edits: []Edit{
+			Edit{
+				Editor:  owner,
+				Content: body,
+			},
+		},
+	}
+	err = mgoConn.C(emailCollection).Insert(&mail)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		log.Printf("failed to insert new draft to %s=> {%s}", emailCollection, err)
+		fmt.Fprintf(w, "Failed to add to database => {%s}", err)
+		return
+	}
+}
+
+// newEmail is an API endpoint to create a new Draft object
 func newEmail(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	var newDraft newEmailRequest
 	decoder := json.NewDecoder(r.Body)

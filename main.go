@@ -125,6 +125,7 @@ func main() {
 
 	// API
 	router.POST("/draft/create", checkIfAuthenticated(newEmail))
+	router.POST("/draft/create2", newEmail2) // TODO: delete
 	router.GET("/draft/list", checkIfAuthenticated(listAvailable))
 	router.POST(fmt.Sprintf("/draft/id/:%s", draftIDParam), checkIfAuthenticated(draftUpdate))
 
