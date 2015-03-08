@@ -83,6 +83,7 @@ func checkIfAuthenticated(h func(http.ResponseWriter, *http.Request, httprouter.
 		session, err := store.Get(r, sessionKey)
 		if err != nil {
 			log.Printf("error getting session => {%s}", err)
+			fmt.Fprintf(w, "error getting session => {%s}", err)
 			return
 		}
 
@@ -90,6 +91,7 @@ func checkIfAuthenticated(h func(http.ResponseWriter, *http.Request, httprouter.
 		_, exists := session.Values[tokenKey]
 		if !exists {
 			http.Redirect(w, r, "/authenticate", http.StatusSeeOther)
+			fmt.Fprintf(w, "Couldn't find data in session values => {%#v}", session.Values)
 			return
 		}
 
