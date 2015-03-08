@@ -7,7 +7,10 @@ import (
 	"log"
 	"net/http"
 
+	googleOauth "google.golang.org/api/oauth2/v2"
+
 	"google.golang.org/api/gmail/v1"
+	"google.golang.org/api/plus/v1"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -35,6 +38,7 @@ var oauthCfg = &oauth2.Config{
 	// For getting user's info, this is the url that Google has defined.
 	Scopes: []string{
 		gmail.MailGoogleComScope,
+		plus.UserinfoEmailScope,
 	},
 }
 
@@ -54,6 +58,8 @@ func handleAuthorize(w http.ResponseWriter, r *http.Request) {
 func handleOAuth2Callback(w http.ResponseWriter, r *http.Request) {
 	//Get the code from the response
 	code := r.FormValue("code")
+
+	// access the session
 	s, err := store.New(r, sessionKey)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -61,22 +67,42 @@ func handleOAuth2Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// add the code to regenerate a token to the cookie
 	s.Values[codeKey] = code
 
+	// createa token with the code
 	tok, err := oauthCfg.Exchange(oauth2.NoContext, code)
 	if err != nil {
 		log.Printf("failed to exchange with code => {%s}", err)
 		return
 	}
 
+	// stuff the token into the cookie
 	s.Values[tokenKey], err = json.Marshal(tok)
 	if err != nil {
 		log.Printf("failed to marshal token to JSON => {%s}", err)
 		return
 	}
 
+	// get the user's email and add it to the cookie
+	client := oauthCfg.Client(oauth2.NoContext, tok)
+	srv, err := googleOauth.New(client)
+	if err != nil {
+		log.Printf("failed to createa google oauth service => {%s}", err)
+		return
+	}
+	callRes, err := googleOauth.NewUserinfoService(srv).Get().Do()
+	if err != nil {
+		log.Printf("failed to make call to google plus => {%s}", err)
+		return
+	}
+	s.Values[userEmailKey] = callRes.Email
+
+	// save the cookie and return
 	store.Save(r, w, s)
-	fmt.Fprintf(w, "You're now authenticated!<br><a href=\"/\">home</a>")
+
+	// redirect to the homepage
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 // makeClient creates an oauth2 client from a session variable

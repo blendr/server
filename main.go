@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"log"
 	"net/http"
@@ -21,6 +19,7 @@ const (
 	sessionKey      = "blendr"
 	codeKey         = "gmail-code"
 	tokenKey        = "gmail-token"
+	userEmailKey    = "gmail-email"
 )
 
 var (
@@ -31,6 +30,7 @@ var (
 	// store initializes the Gorilla session store.
 	store = sessions.NewCookieStore([]byte("qwerty1234")) // TODO: configure
 
+	// mgoConn is the connection to mongodb
 	mgoConn *mgo.Database
 )
 
@@ -94,15 +94,18 @@ func list_emails(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// randomString returns a random string with the specified length
-func randomString(length int) (str string) {
-	b := make([]byte, length)
-	rand.Read(b)
-	return base64.StdEncoding.EncodeToString(b)
-}
-
 func hi(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, `<h1>hi</h1><a href="/list">list emails</a>`)
+	s, err := store.Get(r, sessionKey)
+	if err != nil {
+		fmt.Fprintf(w, "Failed to access the session => {%s}", err)
+		return
+	}
+
+	user := s.Values[userEmailKey]
+	if user == "" {
+		user = " "
+	}
+	fmt.Fprintf(w, "<h1>hi %s</h1><a href=\"/list\">list emails</a>", user)
 }
 
 func debugLog(w http.ResponseWriter, r *http.Request) {
@@ -110,13 +113,15 @@ func debugLog(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-
 	router := httprouter.New()
 
 	router.HandlerFunc("GET", "/", hi)
 	router.HandlerFunc("POST", "/authorize", handleAuthorize)
 	router.HandlerFunc("GET", "/authenticate", needAuth)
 	router.Handler("GET", "/list", checkIfAuthenticated(http.HandlerFunc(list_emails)))
+
+	// API
+	router.Handler("POST", "/draft/create", checkIfAuthenticated(http.HandlerFunc(newEmail)))
 
 	//Google will redirect to this page to return your code, so handle it appropriately
 	router.HandlerFunc("GET", "/oauth2callback", handleOAuth2Callback)
