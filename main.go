@@ -11,7 +11,7 @@ import (
 	"github.com/google/google-api-go-client/gmail/v1"
 	"github.com/gorilla/context"
 	"github.com/gorilla/sessions"
-)
+	"github.com/julienschmidt/httprouter"
 
 type appError struct {
 	Err     error
@@ -101,16 +101,25 @@ func hi(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `<h1>hi</h1><a href="/list">list emails</a>`)
 }
 
+func debugLog(w http.ResponseWriter, r *http.Request) {
+	log.Printf("%s: %s", r.Method, r.URL.Path)
+}
+
 func main() {
-	http.HandleFunc("/", hi)
-	http.HandleFunc("/authorize", handleAuthorize)
-	http.HandleFunc("/authenticate", needAuth)
-	http.Handle("/list", checkIfAuthenticated(http.HandlerFunc(list_emails)))
+
+	router := httprouter.New()
+
+	router.HandlerFunc("GET", "/", hi)
+	router.HandlerFunc("POST", "/authorize", handleAuthorize)
+	router.HandlerFunc("GET", "/authenticate", needAuth)
+	router.Handler("GET", "/list", checkIfAuthenticated(http.HandlerFunc(list_emails)))
 
 	//Google will redirect to this page to return your code, so handle it appropriately
-	http.HandleFunc("/oauth2callback", handleOAuth2Callback)
+	router.HandlerFunc("GET", "/oauth2callback", handleOAuth2Callback)
 
-	err := http.ListenAndServe(":"+serverPort, context.ClearHandler(http.DefaultServeMux))
+	router.NotFound = debugLog
+
+	err := http.ListenAndServe(":"+serverPort, context.ClearHandler(router))
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
