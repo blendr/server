@@ -21,6 +21,9 @@ const (
 	userEmailKey    = "gmail-email"
 	userIDKey       = "gmail-id"
 	draftIDParam    = "draft_id_param"
+
+	mgoUSER = "MONGO_USER"
+	mgoPASS = "MONGO_PASSWORD"
 )
 
 var (
@@ -64,6 +67,14 @@ func init() {
 
 	// connect to the right database
 	mgoConn = mgoSession.DB(mongoDatabase)
+	/*
+		if os.Getenv(mgoUSER) != "" {
+			err = mgoConn.Login(os.Getenv(mgoUSER), os.Getenv(mgoPASS))
+			if err != nil {
+				log.Fatalf("Failed to authenticate with mongo => {%s}", err)
+			}
+		}
+	*/
 }
 
 // checkIfAuthenticated handles checking if the token is in the cookie. If it is not
