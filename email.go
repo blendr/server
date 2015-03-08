@@ -41,6 +41,7 @@ func newEmail(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Failed to decode JSON request => {%s}", err)
+		return
 	}
 
 	// see if the draft alread exists
@@ -48,7 +49,9 @@ func newEmail(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Failed to check database for existance => {%s}", err)
+		return
 	} else if n != 0 {
+		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "tried to recreate object")
 		return
 	}
@@ -86,6 +89,7 @@ func newEmail(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Printf("failed to insert new draft to %s=> {%s}", emailCollection, err)
 		fmt.Fprintf(w, "Failed to add to database => {%s}", err)
+		return
 	}
 }
 
