@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
@@ -106,9 +107,14 @@ func draftUpdate(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 	}
 	change.Editor = s.Values[userEmailKey].(string)
 
-	mgoConn.C(emailCollection).Update(
+	err = mgoConn.C(emailCollection).Update(
 		bson.M{"draftID": draftID},
 		bson.M{"$push": bson.M{"Edits": &change}})
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "failed to insert new draft => {%s}", err)
+		log.Printf("failed to insert new draft => {%s}", err)
+	}
 
 	// TODO: push update to Gmail
 }
