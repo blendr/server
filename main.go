@@ -13,19 +13,14 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/julienschmidt/httprouter"
 
-type appError struct {
-	Err     error
-	Message string
-	Code    int
-}
+	"gopkg.in/mgo.v2"
+)
 
 const (
 	applicationName = "Gmail Peer Edit"
-
-	sessionKey = "blendr"
-	codeKey    = "gmail-code"
-
-	tokenKey = "gmail-token"
+	sessionKey      = "blendr"
+	codeKey         = "gmail-code"
+	tokenKey        = "gmail-token"
 )
 
 var (
@@ -35,6 +30,8 @@ var (
 
 	// store initializes the Gorilla session store.
 	store = sessions.NewCookieStore([]byte("qwerty1234")) // TODO: configure
+
+	mgoConn *mgo.Database
 )
 
 func init() {
@@ -42,8 +39,17 @@ func init() {
 	if serverPort == "" {
 		log.Fatal("No value found in environment for PORT")
 	}
+
+	mgoSession, err := mgo.Dial("localhost:27017")
+	if err != nil {
+		log.Fatalf("Cannot connect to Mongo => {%s}", err)
+	}
+
+	mgoConn = mgoSession.DB("blendr")
 }
 
+// checkIfAuthenticated handles checking if the token is in the cookie. If it is not
+// then we redirect to let the user re-authenticate.
 func checkIfAuthenticated(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		session, err := store.Get(r, sessionKey)
@@ -52,16 +58,14 @@ func checkIfAuthenticated(h http.Handler) http.Handler {
 			return
 		}
 
+		// see if the key is there
 		_, exists := session.Values[tokenKey]
-		log.Printf("%#v", session.Values) // TODO: delete
-
 		if !exists {
 			http.Redirect(w, r, "/authenticate", http.StatusSeeOther)
 			return
 		}
 
 		h.ServeHTTP(w, r)
-		session.Save(r, w)
 	})
 }
 
