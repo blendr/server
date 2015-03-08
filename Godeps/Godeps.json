@@ -1,0 +1,59 @@
+{
+	"ImportPath": "github.com/cahoots-email/server",
+	"GoVersion": "go1.3.1",
+	"Deps": [
+		{
+			"ImportPath": "github.com/gorilla/context",
+			"Rev": "215affda49addc4c8ef7e2534915df2c8c35c6cd"
+		},
+		{
+			"ImportPath": "github.com/gorilla/securecookie",
+			"Rev": "5f171f42328bdd573211bb82bdee8f259c4c61ae"
+		},
+		{
+			"ImportPath": "github.com/gorilla/sessions",
+			"Rev": "1f45645972a051deb63c8e8e3c594041a6145e35"
+		},
+		{
+			"ImportPath": "github.com/julienschmidt/httprouter",
+			"Rev": "91101d17f079ca3c05c6e00354e914a35aa0d3e7"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "c84eff7014eba178f68bd4c05b86780efe0fbf35"
+		},
+		{
+			"ImportPath": "golang.org/x/oauth2",
+			"Rev": "6f28996586216f4539154b9c03e87c4b6bfe4338"
+		},
+		{
+			"ImportPath": "google.golang.org/api/gmail/v1",
+			"Rev": "a59c1355aff5abf0f60c182f9fe9b8acb31ac40e"
+		},
+		{
+			"ImportPath": "google.golang.org/api/googleapi",
+			"Rev": "a59c1355aff5abf0f60c182f9fe9b8acb31ac40e"
+		},
+		{
+			"ImportPath": "google.golang.org/api/oauth2/v2",
+			"Rev": "a59c1355aff5abf0f60c182f9fe9b8acb31ac40e"
+		},
+		{
+			"ImportPath": "google.golang.org/api/plus/v1",
+			"Rev": "a59c1355aff5abf0f60c182f9fe9b8acb31ac40e"
+		},
+		{
+			"ImportPath": "google.golang.org/cloud/compute/metadata",
+			"Rev": "9e1852f5973f776220f4bbed29a60adc3b5e78a0"
+		},
+		{
+			"ImportPath": "google.golang.org/cloud/internal",
+			"Rev": "9e1852f5973f776220f4bbed29a60adc3b5e78a0"
+		},
+		{
+			"ImportPath": "gopkg.in/mgo.v2",
+			"Comment": "r2015.01.24",
+			"Rev": "c6a7dce14133ccac2dcac3793f1d6e2ef048503a"
+		}
+	]
+}
