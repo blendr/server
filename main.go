@@ -34,6 +34,8 @@ var (
 
 	// mgoConn is the connection to mongodb
 	mgoConn *mgo.Database
+
+	baseURL string
 )
 
 func init() {
@@ -42,12 +44,22 @@ func init() {
 		log.Fatal("No value found in environment for PORT")
 	}
 
-	mgoSession, err := mgo.Dial("localhost:27017")
+	baseURL = os.Getenv("BASE_URL")
+	if baseURL != "" {
+		log.Fatal("No config found for BASE_URL")
+	}
+
+	var mgoSession *mgo.Session
+	var err error
+	if os.Getenv("MONGOLAB_URI") != "" {
+		mgoSession, err = mgo.Dial(os.Getenv("MONGOLAB_URI"))
+	} else {
+		mgoSession, err = mgo.Dial("localhost:27017")
+	}
 	if err != nil {
 		log.Fatalf("Cannot connect to Mongo => {%s}", err)
 	}
-	// durable writes
-	mgoSession.SetSafe(&mgo.Safe{})
+	mgoSession.SetSafe(&mgo.Safe{}) // durable writes
 
 	// connect to the right database
 	mgoConn = mgoSession.DB(mongoDatabase)
