@@ -97,9 +97,10 @@ func hi(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		return
 	}
 
-	user := s.Values[userEmailKey].(string)
-	if user == "" {
-		user = " "
+	var user string
+	val, exists := s.Values[userEmailKey]
+	if exists {
+		user = val.(string)
 	}
 	fmt.Fprintf(w, "<h1>hi %s</h1><a href=\"/list\">list emails</a>", user)
 }
