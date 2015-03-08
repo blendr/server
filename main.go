@@ -74,16 +74,14 @@ func init() {
 // checkIfAuthenticated handles checking if the token is in the cookie. If it is not
 // then we redirect to let the user re-authenticate.
 func checkIfAuthenticated(h func(http.ResponseWriter, *http.Request, httprouter.Params)) httprouter.Handle {
-	mgoSession.Refresh()
-
 	return httprouter.Handle(func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		w.Header().Set("Access-Control-Allow-Origin", "https://mail.google.com")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		session, err := store.Get(r, sessionKey)
 		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
 			log.Printf("error getting session => {%s}", err)
-			fmt.Fprintf(w, "error getting session => {%s}", err)
 			return
 		}
 
@@ -91,7 +89,7 @@ func checkIfAuthenticated(h func(http.ResponseWriter, *http.Request, httprouter.
 		_, exists := session.Values[tokenKey]
 		if !exists {
 			http.Redirect(w, r, "/authenticate", http.StatusSeeOther)
-			fmt.Fprintf(w, "Couldn't find data in session values => {%#v}", session.Values)
+			log.Printf("Couldn't find data in session values => {%#v}", session.Values)
 			return
 		}
 
@@ -128,7 +126,6 @@ func main() {
 
 	// API
 	router.POST("/draft/create", checkIfAuthenticated(newEmail))
-	router.POST("/draft/create2", newEmail2) // TODO: delete
 	router.GET("/draft/list", checkIfAuthenticated(listAvailable))
 	router.POST(fmt.Sprintf("/draft/id/:%s", draftIDParam), checkIfAuthenticated(draftUpdate))
 
