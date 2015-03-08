@@ -93,6 +93,7 @@ func checkIfAuthenticated(h func(http.ResponseWriter, *http.Request, httprouter.
 			return
 		}
 
+		log.Printf("Authenticated request going with values => {%#v}", session.Values)
 		h(w, r, p)
 	})
 }
