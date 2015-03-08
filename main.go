@@ -34,7 +34,8 @@ var (
 	store = sessions.NewCookieStore([]byte("qwerty1234")) // TODO: configure
 
 	// mgoConn is the connection to mongodb
-	mgoConn *mgo.Database
+	mgoConn    *mgo.Database
+	mgoSession *mgo.Session
 
 	baseURL string = "https://cahoots-email.herokuapp.com"
 )
@@ -50,7 +51,6 @@ func init() {
 		log.Fatal("No config found for BASE_URL")
 	}
 
-	var mgoSession *mgo.Session
 	var err error
 	if os.Getenv("MONGOLAB_URI") != "" {
 		mgoSession, err = mgo.Dial(os.Getenv("MONGOLAB_URI"))
@@ -62,6 +62,7 @@ func init() {
 	}
 	mgoSession.SetSafe(&mgo.Safe{}) // durable writes
 
+	mgoSession.Refresh()
 	if os.Getenv("MONGO_DATABASE") != "" {
 		mongoDatabase = os.Getenv("MONGO_DATABASE")
 	}
@@ -73,6 +74,7 @@ func init() {
 // checkIfAuthenticated handles checking if the token is in the cookie. If it is not
 // then we redirect to let the user re-authenticate.
 func checkIfAuthenticated(h func(http.ResponseWriter, *http.Request, httprouter.Params)) httprouter.Handle {
+	mgoSession.Refresh()
 
 	return httprouter.Handle(func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		w.Header().Set("Access-Control-Allow-Origin", "https://mail.google.com")
