@@ -34,7 +34,7 @@ func listEmails(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	}
 }
 
-func getDraft(r *http.Request, id string) (string, error) {
+func getDraft(r *http.Request, draftID string) (string, error) {
 	client := makeClient(r)
 	if client == nil {
 		return "", fmt.Errorf("Error while creating oauth2 client")
@@ -52,7 +52,9 @@ func getDraft(r *http.Request, id string) (string, error) {
 	}
 
 	uds := gmail.NewUsersDraftsService(gservice)
-	draft, err := uds.Get(s.Values[userIDKey].(string), id).Do()
+	// TODO: print out all ID's to see if it even has the same shape?
+
+	draft, err := uds.Get(s.Values[userIDKey].(string), draftID).Do()
 	if err != nil {
 		return "", fmt.Errorf("Failed to access draft => {%s}", err)
 	}

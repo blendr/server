@@ -28,7 +28,7 @@ type Edit struct {
 }
 
 type newEmailRequest struct {
-	DraftID string `json:draft_id`
+	DraftID string `json:"draft_id"`
 }
 
 // newEmail is an API endpoint to create a new Draft object
